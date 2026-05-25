@@ -47,10 +47,16 @@ variable "gke_node_count" {
   default     = 1
 }
 
-variable "gke_machine_type" {
-  description = "Machine type for GKE nodes"
-  type        = string
-  default     = "e2-medium"
+variable "gke_min_node_count" {
+  description = "Minimum number of GKE nodes for autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "gke_max_node_count" {
+  description = "Maximum number of GKE nodes for autoscaling"
+  type        = number
+  default     = 5
 }
 
 # Artifact Registry variables
@@ -86,10 +92,16 @@ variable "db_user" {
   type        = string
 }
 
-variable "db_password" {
+variable "database_password" {
   description = "Database password"
   type        = string
   sensitive   = true
+}
+
+variable "database_password_secret_id" {
+  description = "Secret ID for storing database password in Secret Manager"
+  type        = string
+  default     = "postgresql-password"
 }
 
 # BigQuery variables

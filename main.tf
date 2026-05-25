@@ -10,6 +10,37 @@ module "vpc" {
   service_ip_cidr_range = var.service_ip_cidr_range
 }
 
+# 1.1 Firewall Rules Module
+module "firewall" {
+  source               = "./modules/firewall"
+  project_id           = var.project_id
+  vpc_name             = var.vpc_name
+  vpc_network_name     = module.vpc.network_name
+  enable_flow_logs     = true
+  allow_external_https = false
+  allow_external_http  = false
+
+  depends_on = [module.vpc]
+}
+
+# 1.2 IAM Service Accounts Module
+module "iam" {
+  source     = "./modules/iam"
+  project_id = var.project_id
+}
+
+# 1.3 Secrets Manager Module
+module "secrets_manager" {
+  source                        = "./modules/secrets_manager"
+  project_id                    = var.project_id
+  database_password_secret_id   = var.database_password_secret_id
+  database_password             = var.database_password
+  gke_service_account           = module.iam.gke_node_service_account_email
+  migration_service_account     = module.iam.migration_service_account_email
+
+  depends_on = [module.iam]
+}
+
 # 2. GKE Cluster Module
 module "gke" {
   source                = "./modules/gke"
@@ -19,11 +50,14 @@ module "gke" {
   network_name          = module.vpc.network_name
   subnet_name           = module.vpc.subnet_name
   node_count            = var.gke_node_count
+  min_node_count        = var.gke_min_node_count
+  max_node_count        = var.gke_max_node_count
   machine_type          = var.gke_machine_type
+  node_service_account  = module.iam.gke_node_service_account_email
   pod_ip_range_name     = "gke-pods"
   service_ip_range_name = "gke-services"
 
-  depends_on = [module.vpc]
+  depends_on = [module.firewall, module.iam]
 }
 
 # 3. Artifact Registry Module
@@ -44,7 +78,10 @@ module "postgresql" {
   tier                  = var.db_tier
   database_name         = var.db_name
   database_user         = var.db_user
-  database_password     = var.db_password
+  database_password     = var.database_password
+  network_id            = module.vpc.network_id
+
+  depends_on = [module.firewall]
 }
 
 # 5. BigQuery Module
@@ -72,6 +109,8 @@ module "redis" {
   tier                = var.redis_tier
   memory_size_gb      = var.redis_memory_size_gb
   authorized_network  = module.vpc.network_id
+
+  depends_on = [module.firewall]
 }
 
 # 8. Pub/Sub Module
@@ -90,11 +129,10 @@ module "gcs" {
   bucket_name = var.gcs_bucket_name
 }
 
-# 10. Kubernetes Apps Deployments Module (Elasticsearch & Clickhouse)
+# 10. Kubernetes Apps Deployments Module (Elasticsearch & ClickHouse)
 module "k8s_deployments" {
-  source     = "./modules/k8s_deployments"
-  namespace  = "infra"
+  source    = "./modules/k8s_deployments"
+  namespace = "infra"
 
-  # Explicit dependency on GKE node pool completion so providers function correctly
   depends_on = [module.gke]
 }

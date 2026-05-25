@@ -18,4 +18,10 @@ output "subnet_id" {
   value       = google_compute_subnetwork.subnet.id
 }
 
+output "private_vpc_connection_id" {
+  description = "The ID of the private service connection"
+  value       = google_service_networking_connection.private_vpc_connection.id
+}
+
+
 

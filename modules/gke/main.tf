@@ -6,8 +6,6 @@ resource "google_container_cluster" "primary" {
   network    = var.network_name
   subnetwork = var.subnet_name
 
-  # We can't create a cluster with no node pool defined, but we want to immediately delete it
-  # to use a separate managed node pool.
   remove_default_node_pool = true
   initial_node_count       = 1
 
@@ -18,7 +16,7 @@ resource "google_container_cluster" "primary" {
 
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = false # Keep control plane public for ease of setup/admin access
+    enable_private_endpoint = true
     master_ipv4_cidr_block  = "172.16.0.0/28"
   }
 
@@ -26,7 +24,6 @@ resource "google_container_cluster" "primary" {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
 
-  # Enable Shielded GKE Nodes
   enable_shielded_nodes = true
 
   lifecycle {
@@ -47,8 +44,8 @@ resource "google_container_node_pool" "primary_nodes" {
     preemptible  = false
     machine_type = var.machine_type
 
-    # Google recommends custom service accounts for nodes rather than the default compute SA.
-    # For simplification, we will use default but recommend custom in production.
+    service_account = var.node_service_account
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -61,5 +58,10 @@ resource "google_container_node_pool" "primary_nodes" {
     metadata = {
       disable-legacy-endpoints = "true"
     }
+  }
+
+  autoscaling {
+    min_node_count = var.min_node_count
+    max_node_count = var.max_node_count
   }
 }

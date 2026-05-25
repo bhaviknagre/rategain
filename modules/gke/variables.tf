@@ -29,10 +29,27 @@ variable "node_count" {
   default     = 1
 }
 
+variable "min_node_count" {
+  description = "Minimum number of nodes for autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "max_node_count" {
+  description = "Maximum number of nodes for autoscaling"
+  type        = number
+  default     = 5
+}
+
 variable "machine_type" {
   description = "The machine type for GKE nodes"
   type        = string
   default     = "e2-medium"
+}
+
+variable "node_service_account" {
+  description = "Service account email for GKE nodes"
+  type        = string
 }
 
 variable "pod_ip_range_name" {

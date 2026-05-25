@@ -51,3 +51,9 @@ variable "enable_replica" {
   type        = bool
   default     = true
 }
+
+variable "network_id" {
+  description = "The VPC network ID for private Cloud SQL"
+  type        = string
+}
+

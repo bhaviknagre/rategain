@@ -1,3 +1,20 @@
+resource "google_compute_global_address" "private_db_access" {
+  name          = "${var.primary_instance_name}-psa-range"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = var.network_id
+  project       = var.project_id
+}
+
+resource "google_service_networking_connection" "private_db_access" {
+  network                 = var.network_id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_db_access.name]
+
+  depends_on = [google_compute_global_address.private_db_access]
+}
+
 resource "google_sql_database_instance" "primary" {
   name             = var.primary_instance_name
   database_version = var.db_version
@@ -8,16 +25,23 @@ resource "google_sql_database_instance" "primary" {
     tier = var.tier
 
     backup_configuration {
-      enabled            = true
-      binary_log_enabled = false # PostgreSQL uses Write-Ahead Logging (WAL), binary logging is for MySQL/MariaDB
+      enabled                        = true
+      binary_log_enabled             = false
+      backup_retention_settings {
+        retained_backups = 30
+        retention_unit   = "COUNT"
+      }
     }
 
     ip_configuration {
-      ipv4_enabled = true # We enable public IP but restrict access, or use Cloud SQL Auth Proxy
+      ipv4_enabled    = false
+      private_network = var.network_id
     }
   }
 
-  deletion_protection = false # Set to true for production workloads
+  deletion_protection = true
+
+  depends_on = [google_service_networking_connection.private_db_access]
 }
 
 resource "google_sql_database" "database" {
@@ -40,21 +64,21 @@ resource "google_sql_database_instance" "replica" {
   region           = var.region
   project          = var.project_id
 
-  # For read replicas, this points to the primary instance
   master_instance_name = google_sql_database_instance.primary.name
 
   settings {
     tier = var.tier
 
     ip_configuration {
-      ipv4_enabled = true
+      ipv4_enabled    = false
+      private_network = var.network_id
     }
   }
 
-  # Replica depends on primary master node
-  depends_on = [
-    google_sql_database_instance.primary
-  ]
+  deletion_protection = true
 
-  deletion_protection = false
+  depends_on = [
+    google_sql_database_instance.primary,
+    google_service_networking_connection.private_db_access
+  ]
 }

@@ -38,3 +38,33 @@ resource "google_compute_router_nat" "nat" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
   project                            = var.project_id
 }
+
+# Enable Service Networking API
+resource "google_project_service" "servicenetworking" {
+  service            = "servicenetworking.googleapis.com"
+  disable_on_destroy = false
+  project            = var.project_id
+}
+
+# Allocate an IP range for private services access (VPC Peering)
+resource "google_compute_global_address" "private_ip_alloc" {
+  name          = "${var.vpc_name}-private-ip-alloc"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.vpc_network.id
+  project       = var.project_id
+}
+
+# Create the private services connection
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = google_compute_network.vpc_network.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_alloc.name]
+
+  depends_on = [
+    google_project_service.servicenetworking,
+    google_compute_global_address.private_ip_alloc
+  ]
+}
+
