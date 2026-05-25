@@ -1,0 +1,26 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform variables
+terraform.tfvars
+*.auto.tfvars
+
+# Terraform plans
+*.tfplan
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# kubeconfig
+kubeconfig
